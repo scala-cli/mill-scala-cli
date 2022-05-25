@@ -34,23 +34,31 @@ trait ScalaCliCompile extends ScalaModule {
           new FallbackRefreshDisplay
       )
       val cache = FileCache().withLogger(logger)
+      val artifact = Artifact(url).withChanging(compileScalaCliIsChanging)
       val archiveCache = ArchiveCache()
         .withCache(cache)
-      val artifact = Artifact(url).withChanging(compileScalaCliIsChanging)
-      val file = archiveCache.get(artifact).unsafeRun()(cache.ec) match {
-        case Left(e) => throw new Exception(e)
-        case Right(f) =>
-          if (Properties.isWin)
-            os.list(os.Path(f, os.pwd)).filter(_.last.endsWith(".exe")).headOption match {
-              case None      => sys.error(s"No .exe found under $f")
-              case Some(exe) => exe
+      if (compileScalaCliIsCompressed)
+        archiveCache.get(artifact).unsafeRun()(cache.ec) match {
+          case Left(e) => throw new Exception(e)
+          case Right(f) =>
+            if (Properties.isWin)
+              os.list(os.Path(f, os.pwd)).filter(_.last.endsWith(".exe")).headOption match {
+                case None      => sys.error(s"No .exe found under $f")
+                case Some(exe) => exe
+              }
+            else {
+              f.setExecutable(true)
+              os.Path(f, os.pwd)
             }
-          else {
-            f.setExecutable(true)
+        }
+      else
+        cache.file(artifact).run.unsafeRun()(cache.ec) match {
+          case Left(e) => throw new Exception(e)
+          case Right(f) =>
+            if (!Properties.isWin)
+              f.setExecutable(true)
             os.Path(f, os.pwd)
-          }
-      }
-      PathRef(file)
+        }
     }
   }
   import ScalaCliInternal._
@@ -74,8 +82,10 @@ trait ScalaCliCompile extends ScalaModule {
     else None
   }
   def compileScalaCliIsChanging: Boolean = false
+  def compileScalaCliIsCompressed: Boolean =
+    compileScalaCliUrl.exists(url => url.endsWith(".gz") || url.endsWith(".zip"))
 
-  def compileScalaCli: Option[PathRef] = compileScalaCliImpl
+  def compileScalaCli: Option[os.Path] = compileScalaCliImpl
 
   def extraScalaCliOptions: T[List[String]] =
     T {
@@ -84,7 +94,7 @@ trait ScalaCliCompile extends ScalaModule {
 
   override def compile: T[CompilationResult] =
     if (enableScalaCli)
-      compileScalaCli.map(_.path) match {
+      compileScalaCli match {
         case None => super.compile
         case Some(cli) =>
           T.persistent {
