@@ -87,6 +87,11 @@ trait ScalaCliCompile extends ScalaModule {
 
   def compileScalaCli: Option[os.Path] = compileScalaCliImpl
 
+  def extraScalaCliHeadOptions: T[List[String]] =
+    T {
+      List.empty[String]
+    }
+
   def extraScalaCliOptions: T[List[String]] =
     T {
       List.empty[String]
@@ -113,6 +118,7 @@ trait ScalaCliCompile extends ScalaModule {
 
                 val proc = os.proc(
                   cli,
+                  extraScalaCliHeadOptions(),
                   Seq("compile", "--classpath"),
                   Seq("-S", scalaVersion()),
                   asOpt("-O", scalacOptions()),
