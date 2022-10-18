@@ -78,7 +78,6 @@ Benefits:
 - more reliable incremental compilation
 
 Drawbacks:
-- when compiling things in non-interactive mode, the output of Scala CLI, that prints errors and warnings, is sometimes trapped - use of `./mill -i` is recommended, which slows Mill commands a bit
 - no-op incremental compilation (when no sources changed, and nothing new needs to be compiled) has a small but noticeable cost - it takes a small amount of time (maybe in the ~100s of ms), which adds up when running Mill tasks involving numerous modules
 
 Limitations:
