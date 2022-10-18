@@ -8,6 +8,7 @@ import coursier.cache.{ArchiveCache, FileCache}
 import coursier.cache.loggers.{FallbackRefreshDisplay, ProgressBarRefreshDisplay, RefreshLogger}
 import coursier.util.Artifact
 import mill._
+import mill.api.Result
 import mill.scalalib.ScalaModule
 import mill.scalalib.api.CompilationResult
 
@@ -33,7 +34,7 @@ trait ScalaCliCompile extends ScalaModule {
         else
           new FallbackRefreshDisplay
       )
-      val cache = FileCache().withLogger(logger)
+      val cache    = FileCache().withLogger(logger)
       val artifact = Artifact(url).withChanging(compileScalaCliIsChanging)
       val archiveCache = ArchiveCache()
         .withCache(cache)
@@ -110,13 +111,13 @@ trait ScalaCliCompile extends ScalaModule {
               .filter(os.exists(_))
             val workspace = T.dest / "workspace"
             os.makeDir.all(workspace)
-            val classFilesDir =
-              if (sourceFiles.isEmpty) out / "classes"
+            val classFilesDirEither =
+              if (sourceFiles.isEmpty) Right(out / "classes")
               else {
                 def asOpt[T](opt: String, values: IterableOnce[T]): Seq[String] =
                   values.iterator.toList.flatMap(v => Seq(opt, v.toString))
 
-                val proc = os.proc(
+                val outputEither = ProcessUtils.runSubprocess(
                   cli,
                   extraScalaCliHeadOptions(),
                   Seq("compile", "--classpath"),
@@ -130,13 +131,17 @@ trait ScalaCliCompile extends ScalaModule {
                   sourceFiles
                 )
 
-                val compile = proc.call()
-                val out     = compile.out.trim()
-
-                os.Path(out.split(File.pathSeparator).head)
+                outputEither.map { output =>
+                  val out = output.trim()
+                  os.Path(out.split(File.pathSeparator).head)
+                }
               }
-
-            CompilationResult(out / "unused.txt", PathRef(classFilesDir))
+            classFilesDirEither match {
+              case Right(classFilesDir) =>
+                Result.Success(CompilationResult(out / "unused.txt", PathRef(classFilesDir)))
+              case Left(()) =>
+                Result.Failure("Compilation failed")
+            }
           }
       }
     else
