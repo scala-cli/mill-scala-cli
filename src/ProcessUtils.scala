@@ -6,14 +6,15 @@ import java.io.PipedInputStream
 
 // Adapted from Mill Jvm.scala https://github.com/com-lihaoyi/mill/blob/f96162ecb41a9dfbac0bc524b77e09093fd61029/main/src/mill/modules/Jvm.scala#L37
 // Changes:
-//   - return Either[Unit, os.SubProcess] in runSubprocess instead of Unit and to receive os.Shellable* instead of Seq[String]
+//   - return stdout instead of printing it
+//   - return Either[Unit, os.SubProcess.OutputStream] in runSubprocess instead of Unit and to receive os.Shellable* instead of Seq[String]
 //   - receive os.Shellable* instead of Seq[String]
 //   - avoid receiving env and cwd since we don't pass them
 object ProcessUtils {
   /**
    * Runs a generic subprocess and waits for it to terminate.
    */
-  def runSubprocess(command: os.Shellable*): Either[Unit, os.SubProcess] = {
+  def runSubprocess(command: os.Shellable*): Either[Unit, os.SubProcess.OutputStream] = {
     val process = spawnSubprocess(command)
     val shutdownHook = new Thread("subprocess-shutdown") {
       override def run(): Unit = {
@@ -33,7 +34,7 @@ object ProcessUtils {
     } finally {
       Runtime.getRuntime().removeShutdownHook(shutdownHook)
     }
-    if (process.exitCode() == 0) Right(process)
+    if (process.exitCode() == 0) Right(process.stdout)
     else Left(())
   }
 
@@ -59,7 +60,6 @@ object ProcessUtils {
       )
 
       val sources = Seq(
-        (process.stdout, System.out, "spawnSubprocess.stdout", false, () => true),
         (process.stderr, System.err, "spawnSubprocess.stderr", false, () => true),
         (System.in, process.stdin, "spawnSubprocess.stdin", true, () => process.isAlive())
       )
@@ -77,7 +77,7 @@ object ProcessUtils {
     } else {
       os.proc(command).spawn(
         stdin = os.Inherit,
-        stdout = os.Inherit,
+        stdout = os.Pipe,
         stderr = os.Inherit
       )
     }

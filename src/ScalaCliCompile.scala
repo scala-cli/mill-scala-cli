@@ -117,7 +117,7 @@ trait ScalaCliCompile extends ScalaModule {
                 def asOpt[T](opt: String, values: IterableOnce[T]): Seq[String] =
                   values.iterator.toList.flatMap(v => Seq(opt, v.toString))
 
-                val processEither = ProcessUtils.runSubprocess(
+                val outputEither = ProcessUtils.runSubprocess(
                   cli,
                   extraScalaCliHeadOptions(),
                   Seq("compile", "--classpath"),
@@ -131,8 +131,8 @@ trait ScalaCliCompile extends ScalaModule {
                   sourceFiles
                 )
 
-                processEither.map { process =>
-                  val out = process.stdout.trim()
+                outputEither.map { output =>
+                  val out = output.trim()
                   os.Path(out.split(File.pathSeparator).head)
                 }
               }
