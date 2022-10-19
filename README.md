@@ -7,19 +7,20 @@
 with [Scala CLI](https://github.com/VirtusLab/scala-cli) rather than with Mill's
 [`ZincWorker`](https://github.com/com-lihaoyi/mill/blob/4d94945c463b4f4b2aac3d74e0d75511714e00f0/scalalib/src/ZincWorkerModule.scala).
 
-*mill-scala-cli* is used in [Scala CLI](https://github.com/VirtusLab/scala-cli)'s own build. The motivation for writing it originates
-from incremental compilation issues seen with Mill's `ZincWorker` in the Scala CLI build. When using *mill-scala-cli*, compilation is delegated to
-Scala CLI, which delegates it to Bloop, whose use of Zinc has been tried and tested for quite some time. These incremental compilation issues
-go away with *mill-scala-cli*.
+*mill-scala-cli* was used in [Scala CLI](https://github.com/VirtusLab/scala-cli)'s own build. The motivation for writing it originated
+from incremental compilation issues seen with Mill's `ZincWorker` in the Scala CLI build *at the time*. Note that these issues now [seem
+to be addressed](https://github.com/com-lihaoyi/mill/issues/2003).
 
-See below for a list of pros and cons for using mill-scala-cli.
+When using *mill-scala-cli*, compilation is delegated to
+Scala CLI, which delegates it to Bloop, who might be using Zinc slightly differently. Incremental compilation issues
+went away with *mill-scala-cli* at the time. (Later on, Mill >= 0.10.7 didn't suffer from these issues, so Scala CLI stopped using mill-scala-cli.)
 
 ## Usage
 
 Add a dependency towards *mill-scala-cli* in your `build.sc` file (or any Mill build file you want to use `ScalaCliCompile` from),
 and import `ScalaCliCompile`:
 ```scala
-import $ivy.`io.github.alexarchambault.mill::mill-scala-cli::0.1.0`
+import $ivy.`io.github.alexarchambault.mill::mill-scala-cli::0.1.2`
 import scala.cli.mill.ScalaCliCompile
 ```
 
@@ -75,7 +76,7 @@ Decompression is handled by the ArchiveCache capabilities of coursier.
 ## Benefits / drawbacks / limitations
 
 Benefits:
-- more reliable incremental compilation
+- under-the-hood, relies on a different codebase interfacing with Zinc, which can address issues you might see in Mill (or it might suffer from different issues!)
 
 Drawbacks:
 - no-op incremental compilation (when no sources changed, and nothing new needs to be compiled) has a small but noticeable cost - it takes a small amount of time (maybe in the ~100s of ms), which adds up when running Mill tasks involving numerous modules
